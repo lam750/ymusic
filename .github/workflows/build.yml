@@ -8,8 +8,19 @@ jobs:
     container: devkitpro/devkita64:latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install portlibs
-        run: dkp-pacman -Syu --noconfirm switch-curl switch-mbedtls switch-zlib
+      - name: What is preinstalled
+        run: |
+          ls /opt/devkitpro/portlibs/switch/lib 2>/dev/null | head -60 || true
+          cat /opt/devkitpro/pacman/etc/pacman.d/mirrorlist 2>/dev/null || true
+      - name: Install portlibs (retry on 403)
+        run: |
+          L=/opt/devkitpro/portlibs/switch/lib
+          if [ -f $L/libcurl.a ] && [ -f $L/libmbedtls.a ] && [ -f $L/libz.a ]; then echo "already installed"; exit 0; fi
+          for i in 1 2 3 4 5; do
+            dkp-pacman -Syu --noconfirm switch-curl switch-mbedtls switch-zlib && exit 0
+            echo "retry $i"; sleep $((i*30))
+          done
+          exit 1
       - name: Add template Makefile/icon if missing, set LIBS
         run: |
           T=/opt/devkitpro/examples/switch/templates/application
